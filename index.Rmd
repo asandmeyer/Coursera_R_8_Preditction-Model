@@ -1,0 +1,119 @@
+---
+title: "Prediction Model for Barbell Activity"
+author: "asandmeyer"
+date: "25 1 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+Barbell activity can be predicted by measuring the acceleration and movement of certain body parts. Here, six young heath patients were asked to perform one set of ten repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions.
+
+* Class A: exactly according to the specification
+* Class B: throwing the elbows to the front
+* Class C: lifting the dumbbell only halfway
+* Class D: lowering the dumbbell only halfway
+* Class E: throwing the hips to the front
+
+For this project we use the data to first build a prediction model and than apply it to testing data for answering the quiz questions.
+
+## Required libraries
+
+```{r libraries}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(corrplot)
+```
+
+## Preparing data
+
+### Raw data
+The raw data is downloaded from the provided data source URL and saved as .csv files.
+
+```{r get-data, message=FALSE}
+training <- read.csv("./pml-training.csv")
+testing <- read.csv("./pml-testing.csv")
+```
+
+The provided raw data is already split into two data set: 70% in `training` and 30% in `testing`. The `training` data will be used to train our model and to analyze our accuracy. The `testing` data will be applied to answer the quiz questions.
+
+### Cross-validation and cleaning data
+The `training` data set needs to be split into two parts to build our prediction model.
+
+```{r model-data-raw}
+set.seed(123)
+inTrain <- createDataPartition(training$classe, p=0.7, list=FALSE)
+TrainSet <- training[inTrain, ]
+TestSet <- training[-inTrain, ]
+```
+
+In `TrainSet` we put 70% of `training` which will be used to train our model. The rest (30%) was assigned to `TestSet` which will be used to validate our model.
+
+As the next step, we need to clean the data sets since we have `r dim(TrainSet)[2]` variables and there are many `NA` values or blank values.
+
+```{r cleaning}
+#removing NA
+near_NA <- nearZeroVar(TrainSet)
+TrainSet_clean <- TrainSet[ ,-near_NA]
+TestSet_clean <- TestSet[ ,-near_NA]
+
+#removing values close to zero, choose threshold of 95% is chosen
+close_to_zero <- sapply(TrainSet_clean, function(x) mean(is.na(x))) > 0.95
+TrainSet_clean <- TrainSet_clean[ ,close_to_zero==F]
+TestSet_clean <- TestSet_clean[ ,close_to_zero==F]
+```
+
+We now have `r dim(TrainSet_clean)[2]` variables. Since the first five columns are identification variables and the next two are timestamps, we are also going to remove them.
+
+```{r cleaning2}
+TrainSet_clean <- TrainSet_clean[, -(1:7)]
+TestSet_clean <- TestSet_clean[, -(1:7)]
+```
+
+Finally, we only have `r dim(TrainSet_clean)[2]` variables left.
+
+## Correlation Analysis
+
+Since we might not need every predictor because some of them are highly correlated, we correlate the predictors and plot the result.
+
+```{r correlation_analysis}
+corMat <- cor(TrainSet_clean[,-52])
+corrplot(corMat, method="shade", type="lower", tl.col="black", tl.cex=0.5)
+```
+
+In case two variables are highly correlated they either have a bold dark blue shade or a dark red shade with white strips. However, the dark blue shades at the diagonal are due to the fact, that these are variables (of course) highly correlated with themselves. The other spots with indicate correlation are just a few, and therefore the decision is made to keep the data sets as they are. Otherwise, *principal component analysis* could be done as a next step. Here, only variables are taken into account which distribute highly too explain a certain amount of the variance of the data.
+
+## Prediction Model
+
+According to the Coursera R course *Practical Machine Learning* and literature, **Random Forest Model** is one of the most accurate prediction model. Therefore, we decide to take that model.
+
+### Building Model and validation
+
+```{r rf_build, cache=TRUE}
+#Building model, with cache=TRUE to save time
+cv_RF <- trainControl(method="cv", number=3, verboseIter=F)
+modFit_RF <- train(classe ~ ., data=TrainSet_clean, method="rf", trControl=cv_RF, verbose=F)
+modFit_RF$finalModel
+```
+
+```{r validation}
+#validation on test data generated from training data set
+prediction_RF <- predict(modFit_RF, newdata=TestSet_clean)
+conMat_RF <- confusionMatrix(table(TestSet_clean$classe, prediction_RF))
+conMat_RF
+```
+
+According to our validation on the `TestSet_clean` we get an accuracy of `r conMat_RF$overall[1]` with our Random Forest Model `modFit_RF`.
+
+## Applying Model to testing data
+
+Now, as a final step, we want to apply our model `modFit_RF` to the `testing` data set to answer the questions from the quiz.
+
+```{r quiz}
+quiz_solution <- predict(modFit_RF, newdata=testing)
+quiz_solution
+```
