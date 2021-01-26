@@ -93,8 +93,8 @@ According to the Coursera R course *Practical Machine Learning* and literature, 
 
 ### Building Model and validation
 
-```{r rf_build, cache=TRUE}
-#Building model, with cache=TRUE to save time
+```{r rf_build}
+#Building model
 cv_RF <- trainControl(method="cv", number=3, verboseIter=F)
 modFit_RF <- train(classe ~ ., data=TrainSet_clean, method="rf", trControl=cv_RF, verbose=F)
 modFit_RF$finalModel

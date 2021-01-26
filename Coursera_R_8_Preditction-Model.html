@@ -435,7 +435,7 @@ corrplot(corMat, method=&quot;shade&quot;, type=&quot;lower&quot;, tl.col=&quot;
 <p>According to the Coursera R course <em>Practical Machine Learning</em> and literature, <strong>Random Forest Model</strong> is one of the most accurate prediction model. Therefore, we decide to take that model.</p>
 <div id="building-model-and-validation" class="section level3">
 <h3>Building Model and validation</h3>
-<pre class="r"><code>#Building model, with cache=TRUE to save time
+<pre class="r"><code>#Building model
 cv_RF &lt;- trainControl(method=&quot;cv&quot;, number=3, verboseIter=F)
 modFit_RF &lt;- train(classe ~ ., data=TrainSet_clean, method=&quot;rf&quot;, trControl=cv_RF, verbose=F)
 modFit_RF$finalModel</code></pre>
